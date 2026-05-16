@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Comptabilite-Chretiens",
+    "slug": "ma-comtapilite-chretiens",
+    "version": "1.2.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#059669"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.chretiens.comptabilite",
+      "buildNumber": "1"
+    },
+    "android": {
+      "package": "com.chretiens.comptabilite",
+      "versionCode": 1,
+      "permissions": [
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_EXTERNAL_STORAGE"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#059669"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "scheme": "comptabilitechretiens",
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "c3382717-2d96-49ca-9763-748841f05594"
+      }
+    }
+  }
+}

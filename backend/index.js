@@ -42,7 +42,7 @@ const startServer = async () => {
 
     const PORT = process.env.PORT || 5000;
 
-    app.listen(PORT, '0.0.0.0', () => {
+    app.listen(PORT, () => {
       console.log(`🚀 Serveur backend démarré sur le port ${PORT}`);
     });
 

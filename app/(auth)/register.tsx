@@ -1,39 +1,55 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, Lock, Store, ArrowRight, BookOpen, LogIn } from 'lucide-react-native';
-import { registerUser } from '../../src/database/database';
+import { User, Lock, Store, ArrowRight, BookOpen, LogIn, Mail } from 'lucide-react-native';
+import { api } from '../../src/api/api';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const [username, setUsername] = useState('');
-  const [pin, setPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [businessName, setBusinessName] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
-    if (!username || !pin || !confirmPin || !businessName) {
+  const handleRegister = async () => {
+    if (!username || !password || !confirmPassword || !businessName) {
       Alert.alert('Erreur', 'Veuillez remplir tous les champs');
       return;
     }
 
-    if (pin.length < 4) {
-      Alert.alert('Erreur', 'Le code PIN doit contenir au moins 4 chiffres');
+    if (password.length < 4) {
+      Alert.alert('Erreur', 'Le mot de passe doit contenir au moins 4 caractères');
       return;
     }
 
-    if (pin !== confirmPin) {
-      Alert.alert('Erreur', 'Les codes PIN ne correspondent pas');
+    if (password !== confirmPassword) {
+      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas');
       return;
     }
 
+    setLoading(true);
     try {
-      registerUser(username, pin, businessName);
-      Alert.alert('Succès', 'Votre compte a été créé avec succès !', [
-        { text: 'OK', onPress: () => router.replace('/(auth)/login') }
-      ]);
+      const result = await api.register({
+        username,
+        email: email || undefined,
+        password,
+        businessName
+      });
+
+      if (result.success) {
+        Alert.alert('Succès', 'Votre compte a été créé avec succès !', [
+          { text: 'OK', onPress: () => router.replace('/(tabs)') }
+        ]);
+      } else {
+        Alert.alert('Erreur', result.message || 'Impossible de créer le compte');
+      }
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible de créer le compte');
+      console.error('Register error:', error);
+      Alert.alert('Erreur', 'Une erreur est survenue. Veuillez réessayer.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -62,6 +78,22 @@ export default function RegisterScreen() {
                 placeholder="Ex: Jean Dupont"
                 value={username}
                 onChangeText={setUsername}
+                autoCapitalize="words"
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email (optionnel)</Text>
+            <View style={styles.inputContainer}>
+              <Mail size={20} color="#9ca3af" style={styles.icon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: jean@exemple.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
               />
             </View>
           </View>
@@ -80,40 +112,46 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Code PIN de sécurité (min. 4 chiffres)</Text>
+            <Text style={styles.label}>Mot de passe (min. 4 caractères)</Text>
             <View style={styles.inputContainer}>
               <Lock size={20} color="#9ca3af" style={styles.icon} />
               <TextInput
                 style={styles.input}
-                placeholder="Ex: 1234"
-                keyboardType="numeric"
+                placeholder="Mot de passe"
                 secureTextEntry
-                value={pin}
-                onChangeText={setPin}
-                maxLength={8}
+                value={password}
+                onChangeText={setPassword}
               />
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Confirmer le Code PIN</Text>
+            <Text style={styles.label}>Confirmer le mot de passe</Text>
             <View style={styles.inputContainer}>
               <Lock size={20} color="#9ca3af" style={styles.icon} />
               <TextInput
                 style={styles.input}
-                placeholder="Confirmez votre PIN"
-                keyboardType="numeric"
+                placeholder="Confirmez votre mot de passe"
                 secureTextEntry
-                value={confirmPin}
-                onChangeText={setConfirmPin}
-                maxLength={8}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
               />
             </View>
           </View>
 
-          <TouchableOpacity style={styles.button} onPress={handleRegister}>
-            <Text style={styles.buttonText}>Commencer mon travail</Text>
-            <ArrowRight size={20} color="white" />
+          <TouchableOpacity 
+            style={[styles.button, loading && styles.buttonDisabled]} 
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Créer mon compte</Text>
+                <ArrowRight size={20} color="white" />
+              </>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -161,6 +199,7 @@ const styles = StyleSheet.create({
   icon: { marginRight: 12 },
   input: { flex: 1, fontSize: 16, color: '#111827' },
   button: { backgroundColor: '#059669', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 60, borderRadius: 15, marginTop: 10, shadowColor: '#059669', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  buttonDisabled: { backgroundColor: '#9ca3af', shadowOpacity: 0 },
   buttonText: { color: 'white', fontSize: 18, fontWeight: 'bold', marginRight: 10 },
   footer: { alignItems: 'center', marginTop: 40 },
   loginBtn: {

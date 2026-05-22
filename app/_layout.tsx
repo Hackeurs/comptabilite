@@ -1,44 +1,46 @@
 import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { initDB, isUserRegistered } from '../src/database/database';
+import { api } from '../src/api/api';
 
 export default function RootLayout() {
-  const [dbReady, setDbReady] = useState(false);
+  const [appReady, setAppReady] = useState(false);
   const [initialNavigationDone, setInitialNavigationDone] = useState(false);
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    try {
-      initDB();
-      setDbReady(true);
-      console.log('Database initialized');
-    } catch (error) {
-      console.error('Database initialization failed:', error);
-    }
+    const initApp = async () => {
+      try {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        setAppReady(true);
+      } catch (error) {
+        console.error('App initialization failed:', error);
+      }
+    };
+    initApp();
   }, []);
 
   useEffect(() => {
-    if (!dbReady || initialNavigationDone) return;
+    if (!appReady || initialNavigationDone) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const inTabsGroup = segments[0] === '(tabs)';
-    const registered = isUserRegistered();
+    const isAuthenticated = api.isAuthenticated();
 
-    console.log('Navigation state:', { inAuthGroup, inTabsGroup, registered, segments });
+    console.log('Navigation state:', { inAuthGroup, inTabsGroup, isAuthenticated, segments });
 
-    if (!registered && !inAuthGroup) {
-      console.log('Redirecting to register');
-      router.replace('/(auth)/register');
-    } else if (registered && !inAuthGroup && !inTabsGroup) {
+    if (isAuthenticated && !inTabsGroup) {
+      console.log('Redirecting to dashboard');
+      router.replace('/(tabs)');
+    } else if (!isAuthenticated && !inAuthGroup) {
       console.log('Redirecting to login');
       router.replace('/(auth)/login');
     }
 
     setInitialNavigationDone(true);
-  }, [dbReady, initialNavigationDone, segments]);
+  }, [appReady, initialNavigationDone, segments]);
 
-  if (!dbReady) return null;
+  if (!appReady) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

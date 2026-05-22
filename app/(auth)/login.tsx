@@ -1,121 +1,37 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, FlatList } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { Lock, ArrowRight, BookOpen, User, Plus } from 'lucide-react-native';
-import { loginUser, getUser, getUsers, resetUserPIN, isUserRegistered } from '../../src/database/database';
-import type { User as UserType } from '../../src/database/database';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Lock, ArrowRight, BookOpen, User, Plus, Mail } from 'lucide-react-native';
+import { api } from '../../src/api/api';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [pin, setPin] = useState('');
-  const [users, setUsers] = useState<UserType[]>([]);
-  const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      try {
-        const allUsers = getUsers();
-        setUsers(allUsers);
-        if (allUsers.length === 1) {
-          setSelectedUser(allUsers[0]);
-        }
-      } catch (error) {
-        console.error('Error loading users:', error);
-        setUsers([]);
-      }
-    }, [])
-  );
+  const handleLogin = async () => {
+    if (!username || !password) {
+      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+      return;
+    }
 
-  const handleLogin = () => {
+    setLoading(true);
     try {
-      if (!selectedUser) {
-        Alert.alert('Erreur', 'Veuillez sélectionner un utilisateur');
-        return;
-      }
-      if (!pin) {
-        Alert.alert('Erreur', 'Veuillez saisir votre code PIN de sécurité');
-        return;
-      }
+      const result = await api.login({ username, password });
 
-      const authenticatedUser = loginUser(pin, selectedUser.id);
-      if (authenticatedUser) {
-        if (!authenticatedUser.email) {
-          router.push({
-            pathname: '/email-setup',
-            params: { userId: authenticatedUser.id }
-          });
-        } else {
-          router.replace('/(tabs)');
-        }
+      if (result.success) {
+        router.replace('/(tabs)');
       } else {
-        Alert.alert('Erreur', 'Code PIN incorrect. Veuillez réessayer.');
-        setPin('');
+        Alert.alert('Erreur', result.message || 'Identifiants incorrects');
       }
     } catch (error) {
       console.error('Login error:', error);
       Alert.alert('Erreur', 'Une erreur est survenue. Veuillez réessayer.');
+    } finally {
+      setLoading(false);
     }
   };
-
-  const handleForgotPIN = () => {
-    if (!selectedUser) {
-      Alert.alert('Erreur', 'Veuillez d\'abord sélectionner un utilisateur');
-      return;
-    }
-
-    router.push({
-      pathname: '/forgot-password',
-      params: { userId: selectedUser.id }
-    });
-  };
-
-  const renderPinDots = () => {
-    const dots = [];
-    for (let i = 0; i < 4; i++) {
-      dots.push(
-        <View 
-          key={i} 
-          style={[
-            styles.pinDot, 
-            { backgroundColor: pin.length > i ? '#059669' : '#e5e7eb' }
-          ]} 
-        />
-      );
-    }
-    return dots;
-  };
-
-  const renderUserItem = ({ item }: { item: UserType }) => (
-    <TouchableOpacity
-      style={[
-        styles.userItem,
-        selectedUser?.id === item.id && styles.userItemSelected
-      ]}
-      onPress={() => {
-        setSelectedUser(item);
-        setPin('');
-      }}
-    >
-      <View style={[
-        styles.userAvatar,
-        selectedUser?.id === item.id && styles.userAvatarSelected
-      ]}>
-        <User size={24} color={selectedUser?.id === item.id ? 'white' : '#059669'} />
-      </View>
-      <Text style={[
-        styles.userName,
-        selectedUser?.id === item.id && styles.userNameSelected
-      ]}>
-        {item.username}
-      </Text>
-      <Text style={[
-        styles.userRole,
-        selectedUser?.id === item.id && styles.userRoleSelected
-      ]}>
-        {item.role === 'ADMIN' ? 'Administrateur' : 'Employé'}
-      </Text>
-    </TouchableOpacity>
-  );
 
   return (
     <KeyboardAvoidingView 
@@ -129,67 +45,55 @@ export default function LoginScreen() {
           </View>
           <Text style={styles.title}>Bienvenue sur</Text>
           <Text style={styles.appName}>Comptabilité Chrétiens</Text>
-          <Text style={styles.subtitle}>Choisissez votre compte pour continuer</Text>
+          <Text style={styles.subtitle}>Connectez-vous pour continuer</Text>
         </View>
 
-        {users.length > 1 && (
-          <View style={styles.userSelector}>
-            <Text style={styles.selectorTitle}>Sélectionnez votre compte</Text>
-            <FlatList
-              data={users}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={renderUserItem}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.userList}
-            />
-          </View>
-        )}
-
         <View style={styles.form}>
-          <Text style={styles.formTitle}>
-            {selectedUser ? `Bonjour, ${selectedUser.username}` : 'Sélectionnez un utilisateur'}
-          </Text>
+          <Text style={styles.formTitle}>Connexion</Text>
 
-          <View style={styles.pinDisplayContainer}>
-            {renderPinDots()}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Nom d'utilisateur</Text>
+            <View style={styles.inputContainer}>
+              <User size={20} color="#9ca3af" style={styles.icon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Votre nom d'utilisateur"
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoComplete="username"
+              />
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
+            <Text style={styles.label}>Mot de passe</Text>
             <View style={styles.inputContainer}>
-              <Lock size={24} color="#059669" style={styles.icon} />
+              <Lock size={20} color="#9ca3af" style={styles.icon} />
               <TextInput
                 style={styles.input}
-                placeholder="PIN"
-                keyboardType="numeric"
+                placeholder="Votre mot de passe"
                 secureTextEntry
-                value={pin}
-                onChangeText={setPin}
-                maxLength={4}
-                autoFocus
-                selectionColor="#059669"
-                editable={!!selectedUser}
+                value={password}
+                onChangeText={setPassword}
+                autoComplete="password"
               />
             </View>
           </View>
 
           <TouchableOpacity 
-            style={[styles.button, (!pin || !selectedUser) && styles.buttonDisabled]} 
+            style={[styles.button, loading && styles.buttonDisabled]} 
             onPress={handleLogin}
-            disabled={!pin || !selectedUser}
+            disabled={loading}
           >
-            <Text style={styles.buttonText}>Se connecter</Text>
-            <ArrowRight size={20} color="white" />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.forgotButton} 
-            onPress={handleForgotPIN}
-            disabled={!selectedUser}
-          >
-            <Text style={[styles.forgotButtonText, !selectedUser && styles.forgotButtonTextDisabled]}>
-              Mot de passe oublié ?
-            </Text>
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Se connecter</Text>
+                <ArrowRight size={20} color="white" />
+              </>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -199,10 +103,10 @@ export default function LoginScreen() {
             onPress={() => router.push('/(auth)/register')}
           >
             <Plus size={16} color="#059669" />
-            <Text style={styles.createAccountText}>Créer un compte administrateur</Text>
+            <Text style={styles.createAccountText}>Créer un compte</Text>
           </TouchableOpacity>
-          <Text style={styles.footerText}>Comptabilité Chrétiens v1.3.0</Text>
-          <Text style={styles.footerText}>© 2024 - Sécurisé par Smart Innovation</Text>
+          <Text style={styles.footerText}>© 2024 Comptabilité Chrétiens</Text>
+          <Text style={styles.footerText}>Sécurité et Confidentialité Garanties</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -212,7 +116,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   scrollContent: { padding: 30, paddingBottom: 50, flexGrow: 1 },
-  header: { alignItems: 'center', marginBottom: 30, marginTop: 20 },
+  header: { alignItems: 'center', marginBottom: 40, marginTop: 40 },
   logoContainer: { 
     width: 100, 
     height: 100, 
@@ -229,76 +133,17 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 18, color: '#4b5563', fontWeight: '500' },
   appName: { fontSize: 28, fontWeight: 'bold', color: '#059669', marginBottom: 10 },
-  subtitle: { fontSize: 14, color: '#6b7280', textAlign: 'center', paddingHorizontal: 20 },
-  userSelector: { marginBottom: 20 },
-  selectorTitle: { fontSize: 15, fontWeight: '600', color: '#374151', marginBottom: 12, textAlign: 'center' },
-  userList: { paddingHorizontal: 10 },
-  userItem: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 20,
-    marginHorizontal: 8,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    minWidth: 140
-  },
-  userItemSelected: {
-    backgroundColor: '#059669',
-    borderColor: '#047857'
-  },
-  userAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#d1fae5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10
-  },
-  userAvatarSelected: {
-    backgroundColor: '#047857'
-  },
-  userName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 4
-  },
-  userNameSelected: {
-    color: 'white'
-  },
-  userRole: {
-    fontSize: 11,
-    color: '#6b7280'
-  },
-  userRoleSelected: {
-    color: '#a7f3d0'
-  },
+  subtitle: { fontSize: 14, color: '#6b7280', textAlign: 'center' },
   form: { backgroundColor: 'white', borderRadius: 25, padding: 25, elevation: 4, shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 2 } },
-  formTitle: { fontSize: 16, fontWeight: '600', color: '#1f2937', marginBottom: 20, textAlign: 'center' },
-  pinDisplayContainer: { flexDirection: 'row', justifyContent: 'center', marginBottom: 30 },
-  pinDot: { width: 20, height: 20, borderRadius: 10, marginHorizontal: 10, borderWidth: 1, borderColor: '#d1d5db' },
-  inputGroup: { marginBottom: 20, alignItems: 'center' },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 2, borderColor: '#059669', borderRadius: 15, paddingHorizontal: 15, height: 65, backgroundColor: '#f0fdf4' },
-  icon: { marginRight: 15 },
-  input: { flex: 1, fontSize: 24, color: '#111827', fontWeight: 'bold', textAlign: 'center', letterSpacing: 10 },
+  formTitle: { fontSize: 20, fontWeight: 'bold', color: '#1f2937', marginBottom: 30, textAlign: 'center' },
+  inputGroup: { marginBottom: 20 },
+  label: { fontSize: 14, fontWeight: 'bold', color: '#374151', marginBottom: 8 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 15, paddingHorizontal: 15, height: 55, backgroundColor: '#f9fafb' },
+  icon: { marginRight: 12 },
+  input: { flex: 1, fontSize: 16, color: '#111827' },
   button: { backgroundColor: '#059669', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 60, borderRadius: 15, marginTop: 10, shadowColor: '#059669', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   buttonDisabled: { backgroundColor: '#9ca3af', shadowOpacity: 0 },
   buttonText: { color: 'white', fontSize: 18, fontWeight: 'bold', marginRight: 10 },
-  forgotButton: {
-    alignItems: 'center',
-    marginTop: 20,
-    padding: 10
-  },
-  forgotButtonText: {
-    color: '#059669',
-    fontSize: 15,
-    fontWeight: '600'
-  },
-  forgotButtonTextDisabled: {
-    color: '#9ca3af'
-  },
   footer: { alignItems: 'center', marginTop: 40 },
   createAccountBtn: {
     flexDirection: 'row',
